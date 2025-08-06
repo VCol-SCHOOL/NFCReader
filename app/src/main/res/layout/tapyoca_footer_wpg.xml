@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/tapyoca_footer_wpg"
+        android:layout_width="match_parent"
+        android:layout_height="127dp" android:background="#D96E3B"
+        android:orientation="vertical">
+
+    <ImageButton
+            android:id="@+id/menu_btn"
+            android:layout_width="55dp"
+            android:layout_height="55dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_gravity="right"
+            android:backgroundTint="@color/main_color"
+            android:src="@drawable/help_icon"/>
+</LinearLayout>

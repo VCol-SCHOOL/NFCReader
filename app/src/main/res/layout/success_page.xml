@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" xmlns:app="http://schemas.android.com/apk/res-auto" android:background="#FFFFFF" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ScrollView android:id="@+id/rrqv2hujk1l" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:background="#F7E9C1">
+
+        <LinearLayout android:id="@+id/successPage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                <include layout="@layout/tapyoca_app_bar"/>
+
+                <TextView
+                        android:textColor="@color/font_color"
+                        android:textSize="36sp" android:layout_marginBottom="18dp"
+                        android:layout_height="wrap_content"
+                        android:layout_width="wrap_content"
+                        android:fontFamily="@font/saira_regular"
+                        android:text="Submission Sent!"/>
+
+                <TextView
+                        android:textColor="@color/font_color" android:textSize="16sp"
+                        android:layout_marginBottom="28dp"
+                        android:layout_height="wrap_content"
+                        android:layout_width="234dp" android:gravity="center"
+                        android:fontFamily="@font/montserrat_regular"
+                        android:text="We will contact you within 1-3 business days."/>
+
+                <ImageView
+                        android:layout_width="162dp" android:layout_height="162dp"
+                        android:layout_marginBottom="48dp"
+                        android:src="@drawable/check_mark" android:scaleType="fitXY"/>
+
+                <TextView
+                        android:textColor="#4F4F4F" android:textSize="16sp"
+                        android:layout_height="wrap_content"
+                        android:layout_width="287dp" android:gravity="center"
+                        android:fontFamily="@font/montserrat_regular"
+                        android:text="Having issues with another Fancard™?"/>
+
+                <Button android:id="@+id/returnButton"
+                        android:layout_width="250dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:backgroundTint="@color/darker_button"
+                        android:layout_gravity="center"
+                        android:layout_marginBottom="30dp"
+                        android:textStyle="bold"
+                        android:fontFamily="@font/saira_regular"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:text="Tap here to restart"/>
+
+                <include layout="@layout/tapyoca_footer"/>
+            </LinearLayout>
+        </LinearLayout>
+
+    </ScrollView>
+</LinearLayout>

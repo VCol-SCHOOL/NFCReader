@@ -3,39 +3,165 @@ package com.github.muellerma.nfcreader
 import android.app.PendingIntent
 import android.content.Intent
 import android.nfc.NdefMessage
-import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
-import android.nfc.tech.MifareClassic
-import android.nfc.tech.MifareUltralight
+import android.nfc.tech.Ndef
+import android.nfc.tech.NfcA
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
+import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.github.muellerma.nfcreader.record.ParsedNdefRecord
+import androidx.core.content.IntentCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import java.text.SimpleDateFormat
-import java.util.*
+//import java.util.*
+
+import retrofit2.*
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
-    private var tagList: LinearLayout? = null
-    private var nfcAdapter: NfcAdapter? = null
+    var tagList: LinearLayout? = null
+    var nfcAdapter: NfcAdapter? = null
+
+    //Views
+    lateinit var successView: View //for api success go to success layout
+    lateinit var submitButton: Button
+    lateinit var returnButton: Button
+    lateinit var returnButtonEr: Button
+    lateinit var backButton: Button
+    lateinit var emailInput: EditText
+    lateinit var exView: View
+    lateinit var howTo: View
+    lateinit var errorPg: View
+    lateinit var footerMenu: LinearLayout
+    lateinit var helpButton: ImageButton
+
+    //Fields for DB and to display
+    private lateinit var type_text: String
+    private lateinit var tech_text: String
+    private lateinit var serial_text: String
+    private lateinit var sig_text: String
+    private lateinit var record_text: String
+
+    //Reference to Api to submit said data
+    private lateinit var api: ApiService
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        tagList = findViewById<View>(R.id.list) as LinearLayout
+
+        tagList = layoutInflater.inflate(R.layout.activity_main, null) as LinearLayout
+        tagList!!.setId(View.generateViewId())
+        setContentView(tagList)
+
+        footerMenu = tagList!!.findViewById(R.id.tapyoca_footer_wpg) as LinearLayout
+        helpButton =  footerMenu.findViewById(R.id.menu_btn)
+
+        exView = layoutInflater.inflate(R.layout.submit_forum, null) as View
+        tagList!!.addView(exView)
+        exView.setId(View.generateViewId())
+        emailInput = exView.findViewById(R.id.emailInput)
+        submitButton = exView.findViewById(R.id.submitButton)
+        exView.visibility = View.GONE
+
+        howTo = layoutInflater.inflate(R.layout.how_to_tap, null) as LinearLayout
+        tagList!!.addView(howTo)
+        howTo.setId(View.generateViewId())
+        returnButton = howTo.findViewById(R.id.returnButtonHT)
+        howTo.visibility = View.GONE
+
+
+        errorPg = layoutInflater.inflate(R.layout.error_page, null) as View
+        tagList!!.addView(errorPg)
+        errorPg.setId(View.generateViewId())
+        returnButtonEr = errorPg.findViewById(R.id.returnButton)
+        errorPg.visibility = View.GONE
+
+        successView = layoutInflater.inflate(R.layout.success_page, null) as View
+        tagList!!.addView(successView)
+        successView.setId(View.generateViewId())
+        backButton = successView.findViewById(R.id.returnButton)
+        successView.visibility = View.GONE
+
+
+        //https://api.tapyoca.app/tech-support/index.php
+        api = Retrofit.Builder()
+            .baseUrl("https://api.tapyoca.app/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ApiService::class.java)
+
         resolveIntent(intent)
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         if (nfcAdapter == null) {
             showNoNfcDialog()
             return
+        }
+
+        submitButton.setOnClickListener {
+            if (emailInput.text.isNullOrEmpty()) {
+                Toast.makeText(this, "Email is required.", Toast.LENGTH_SHORT).show()
+            } else {
+                //Toast.makeText(this, "No, not yet", Toast.LENGTH_SHORT).show()
+                sendDataToApi(emailInput.text.toString())
+                sendDataToApi(emailInput.text.toString())
+            }
+        }
+
+        helpButton.setOnClickListener {
+            howTo.visibility = View.VISIBLE
+        }
+
+        backButton.setOnClickListener {
+            successView.visibility = View.GONE
+        }
+
+        returnButton.setOnClickListener {
+            howTo.visibility = View.GONE
+
+        }
+
+        returnButtonEr.setOnClickListener {
+            errorPg.visibility = View.GONE
+        }
+    }
+
+    fun sendDataToApi(email: String) {
+        val request = TechSupportRequest(
+            email = email,
+            uID = serial_text,
+            //tech = tech_text,
+            //sig = sig_text,
+            record = record_text,
+            type = type_text,
+            liveID = 0
+        )
+
+        try{
+            api.sendTechSupport(request).enqueue(object : Callback<TechSupportRequest> {
+                override fun onResponse(call: Call<TechSupportRequest>, response: Response<TechSupportRequest>) {
+                    if (response.isSuccessful /*&& response.body()?.success == true*/) {
+                        exView.visibility = View.GONE
+                        successView.visibility = View.VISIBLE
+
+                    } else {
+                        Toast.makeText(this@MainActivity, "Failed to send data.", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<TechSupportRequest>, t: Throwable) {
+                    Toast.makeText(this@MainActivity, "Error: ${t.message}", Toast.LENGTH_LONG).show()
+                }
+            })
+        }
+        catch(e: Exception){
+            Log.e("AppCrash", "UI update failed", e)
         }
     }
 
@@ -75,11 +201,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openNfcSettings() {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            Intent(Settings.Panel.ACTION_NFC)
-        } else {
-            Intent(Settings.ACTION_WIRELESS_SETTINGS)
-        }
+        val intent = Intent(Settings.Panel.ACTION_NFC)
         startActivity(intent)
     }
 
@@ -91,171 +213,95 @@ class MainActivity : AppCompatActivity() {
         )
         if (intent.action in validActions) {
             // TODO
-            val rawMsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+            val rawMsgs = IntentCompat.getParcelableArrayExtra(intent, NfcAdapter.EXTRA_NDEF_MESSAGES, NdefMessage::class.java)
             val messages = mutableListOf<NdefMessage>()
             if (rawMsgs != null) {
                 rawMsgs.forEach {
                     messages.add(it as NdefMessage)
                 }
+                // Setup the views
+                buildTagViews(messages)
             } else {
-                // Unknown tag type
-                val empty = ByteArray(0)
-                val id = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID)
-                val tag = intent.parcelable<Tag>(NfcAdapter.EXTRA_TAG) ?: return
-                val payload = dumpTagData(tag).toByteArray()
-                val record = NdefRecord(NdefRecord.TNF_UNKNOWN, empty, id, payload)
-                val msg = NdefMessage(arrayOf(record))
-                messages.add(msg)
-            }
-            // Setup the views
-            buildTagViews(messages)
-        }
-    }
-
-    private fun dumpTagData(tag: Tag): String {
-        val sb = StringBuilder()
-        val id = tag.id
-        sb.append("ID (hex): ").append(toHex(id)).append('\n')
-        sb.append("ID (reversed hex): ").append(toReversedHex(id)).append('\n')
-        sb.append("ID (dec): ").append(toDec(id)).append('\n')
-        sb.append("ID (reversed dec): ").append(toReversedDec(id)).append('\n')
-        val prefix = "android.nfc.tech."
-        sb.append("Technologies: ")
-        for (tech in tag.techList) {
-            sb.append(tech.substring(prefix.length))
-            sb.append(", ")
-        }
-        sb.delete(sb.length - 2, sb.length)
-        for (tech in tag.techList) {
-            if (tech == MifareClassic::class.java.name) {
-                sb.append('\n')
-                var type = "Unknown"
-                try {
-                    val mifareTag = MifareClassic.get(tag)
-
-                    when (mifareTag.type) {
-                        MifareClassic.TYPE_CLASSIC -> type = "Classic"
-                        MifareClassic.TYPE_PLUS -> type = "Plus"
-                        MifareClassic.TYPE_PRO -> type = "Pro"
-                    }
-                    sb.appendLine("Mifare Classic type: $type")
-                    sb.appendLine("Mifare size: ${mifareTag.size} bytes")
-                    sb.appendLine("Mifare sectors: ${mifareTag.sectorCount}")
-                    sb.appendLine("Mifare blocks: ${mifareTag.blockCount}")
-                } catch (e: Exception) {
-                    sb.appendLine("Mifare classic error: ${e.message}")
-                }
-            }
-            if (tech == MifareUltralight::class.java.name) {
-                sb.append('\n')
-                val mifareUlTag = MifareUltralight.get(tag)
-                var type = "Unknown"
-                when (mifareUlTag.type) {
-                    MifareUltralight.TYPE_ULTRALIGHT -> type = "Ultralight"
-                    MifareUltralight.TYPE_ULTRALIGHT_C -> type = "Ultralight C"
-                }
-                sb.append("Mifare Ultralight type: ")
-                sb.append(type)
+                errorPg.visibility = View.VISIBLE
             }
         }
-        return sb.toString()
-    }
-
-    private fun toHex(bytes: ByteArray): String {
-        val sb = StringBuilder()
-        for (i in bytes.indices.reversed()) {
-            val b = bytes[i].toInt() and 0xff
-            if (b < 0x10) sb.append('0')
-            sb.append(Integer.toHexString(b))
-            if (i > 0) {
-                sb.append(" ")
-            }
-        }
-        return sb.toString()
-    }
-
-    private fun toReversedHex(bytes: ByteArray): String {
-        val sb = StringBuilder()
-        for (i in bytes.indices) {
-            if (i > 0) {
-                sb.append(" ")
-            }
-            val b = bytes[i].toInt() and 0xff
-            if (b < 0x10) sb.append('0')
-            sb.append(Integer.toHexString(b))
-        }
-        return sb.toString()
-    }
-
-    private fun toDec(bytes: ByteArray): Long {
-        var result: Long = 0
-        var factor: Long = 1
-        for (i in bytes.indices) {
-            val value = bytes[i].toLong() and 0xffL
-            result += value * factor
-            factor *= 256L
-        }
-        return result
-    }
-
-    private fun toReversedDec(bytes: ByteArray): Long {
-        var result: Long = 0
-        var factor: Long = 1
-        for (i in bytes.indices.reversed()) {
-            val value = bytes[i].toLong() and 0xffL
-            result += value * factor
-            factor *= 256L
-        }
-        return result
     }
 
     private fun buildTagViews(msgs: List<NdefMessage>) {
         if (msgs.isEmpty()) {
             return
         }
-        val inflater = LayoutInflater.from(this)
-        val content = tagList
 
-        // Parse the first message in the list
-        // Build views for all of the sub records
-        val now = Date()
-        val records = NdefMessageParser.parse(msgs[0])
-        val size = records.size
-        for (i in 0 until size) {
-            val timeView = TextView(this)
-            timeView.text = TIME_FORMAT.format(now)
-            content!!.addView(timeView, 0)
-            val record: ParsedNdefRecord = records[i]
-            content.addView(record.getView(this, inflater, content, i), 1 + i)
-            content.addView(inflater.inflate(R.layout.tag_divider, content, false), 2 + i)
-        }
-    }
+        val tag = intent.parcelable<Tag>(NfcAdapter.EXTRA_TAG) ?: return
+        //var specStr = StringBuilder()
+        val conn =  NfcA.get(tag)
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.menu_main_clear -> {
-                clearTags()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun clearTags() {
-        for (i in tagList!!.childCount - 1 downTo 0) {
-            val view = tagList!!.getChildAt(i)
-            if (view.id != R.id.tag_viewer_text) {
-                tagList!!.removeViewAt(i)
+        //Tag Type
+        conn.connect()
+        var cmd = byteArrayOf(0x60)
+        var result = conn.transceive(cmd)
+        conn.close()
+        //var rawTagInfo = ""
+        if(result != null){
+            val verString =
+                result.joinToString(separator = ":") { eachByte -> "%02x".format(eachByte) }
+            //rawTagInfo = "Raw tag info: "+verString+"\n"
+            when(verString.substring(18,20)){
+                "0F" -> type_text = "NTAG213"
+                "11" -> type_text = "NTAG215"
+                "13" -> type_text = "NTAG216"
             }
         }
+        else {
+            type_text = "NA"
+        }
+
+        //Tech available
+        //val techFound = TextView(this)
+        //built similar to dumpTagData
+        val sb = StringBuilder()
+        val prefix = "android.nfc.tech."
+        sb.append("[")
+        for (tech in tag.techList) { //uses tag read from line 237
+            sb.append(tech.substring(prefix.length))
+            sb.append(", ")
+        }
+        sb.delete(sb.length - 2, sb.length)
+        sb.append("]")
+        tech_text = sb.toString()
+
+        //serial number
+        //val serialNo = TextView(this)
+        val sN = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID)
+        serial_text = "NA" //place holder if not found
+        if(sN != null){
+            serial_text = sN.joinToString(separator = ""){ eachByte -> "%02x".format(eachByte) }
+        }
+
+        //Signature
+        conn.connect()
+        cmd = byteArrayOf(0x3C, 0x00)
+        result = conn.transceive(cmd)
+        conn.close()
+        if(result != null){
+            sig_text = result.joinToString(separator = ""){ eachByte -> "%02x".format(eachByte)}
+        }
+        else {
+            sig_text = "NA"
+        }
+
+        //First Record
+        val ndef = Ndef.get(tag)
+        ndef?.connect() //It got it, just without the https
+        ndef?.cachedNdefMessage?.records?.firstOrNull()?.let { record ->
+            record_text = URI_PREFIX_MAP[record.payload[0]]!!+String(record.payload, Charsets.UTF_8)
+                .removePrefix("\u0002en")
+        }
+        ndef?.close()
+        exView.visibility = View.VISIBLE // submition forum
+
+        //parse function leads to NdefMessageParser, and will sort out if a tag record is a
+        //url, text, or smart text
     }
 
-    companion object {
-        private val TIME_FORMAT = SimpleDateFormat.getDateTimeInstance()
-    }
 }

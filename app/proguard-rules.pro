@@ -20,3 +20,8 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 -dontobfuscate
+# Keep all test classes (JUnit, AndroidX)
+-keep class androidx.** { *; }
+-keep class org.junit.** { *; }
+-keep class junit.** { *; }
+-keep class androidx.test.** { *; }
